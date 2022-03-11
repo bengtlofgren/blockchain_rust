@@ -116,7 +116,6 @@ impl Blockchain {
         match outputs{
             None => {},
             Some(outputs) => {
-                println!("found outputs!");
                 if outputs.is_array(){
                     let outs = outputs.as_array().unwrap();
                     for out in outs.iter(){
@@ -337,7 +336,7 @@ fn verify_hash(json : &serde_json::Value) -> bool{
     // One string has double quotes whereas the other does not, so I do some hacky manipulation here, ideally would prefer not to ...
     let check_aux = format!("{:?}", block_hash.to_lowercase());
     if check_aux.eq(&json.get("hash").unwrap().to_string()) {
-        println!("hash verified")
+        //println!("hash verified")
     }
     else{
         println!("hash invalid!");
@@ -355,7 +354,7 @@ fn heads_query(blockchain : &Blockchain){
 }
 
 fn handle_block(json : &serde_json::Value, blockchain : &mut Blockchain){
-    println!("handling block");
+    //println!("handling block");
     let mut is_correct = false;
     if validate_block(json) {
         let mut new_block : Block = serde_json::from_value(json.to_owned()).unwrap();
@@ -447,7 +446,7 @@ fn validate_block(json : &serde_json::Value) -> bool{
         is_correct
 }
 fn validate_difficulty(pred_diff : &u32, new_diff : &u32, blockhash :&String) -> bool{
-    println!("validating difficulty");
+    //println!("validating difficulty");
     let mut is_correct = true;
     if pred_diff > new_diff {
         is_correct = false;
@@ -474,7 +473,7 @@ fn validate_difficulty(pred_diff : &u32, new_diff : &u32, blockhash :&String) ->
     is_correct
 }
 fn validate_transactions(transactions : &mut Vec<Transaction>) -> bool {
-    println!("validating transactions!");
+    //println!("validating transactions!");
     let mut is_correct = true;
     let mut outputs_sum = 0;
     let mut inputs_sum = 0;
