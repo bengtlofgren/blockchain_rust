@@ -153,45 +153,7 @@ impl Blockchain {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {  
-    let cur_state = State{
-        height : 0,
-        totalwork : 0,
-        hash : "".to_string(),
-        outputs : vec![init_input(0,0),],
-    };
-
-    let cur_trans = Transaction{
-        inputs : vec![init_input(0,0),],
-        outputs : vec![init_input(0,0),],
-    };
-    
-    let cur_block = Block{
-        hash : "".to_string(),
-        predecessor : "".to_string(),
-        nonce : 0,
-        difficulty : 0,
-        transactions : vec![cur_trans,],
-    };
-
-    let cur_head = Head{
-        height : 0,
-        totalwork : 0,
-        hash : "".to_string(),
-    };
-
-    let cur_head2 = Head{
-        height : 0,
-        totalwork : 0,
-        hash : "".to_string(),
-    };
-
-    let mut blockchain = Blockchain{
-        state : cur_state,
-        heads: vec![cur_head,],
-        blocks : vec![cur_block,],
-        head_history : vec![cur_head2],
-        //unspent_trans : serde_json::to_value(&init_input(0,0)).unwrap(),
-    };
+    let mut blockchain = init_blockchain();
     let mut is_init = false;
     loop {
         let stdin = std::io::stdin();
@@ -352,7 +314,6 @@ fn heads_query(blockchain : &Blockchain){
     let test_str = serde_json::to_string(&blockchain.heads).unwrap();
     println!("{}", test_str);
 }
-
 fn handle_block(json : &serde_json::Value, blockchain : &mut Blockchain){
     //println!("handling block");
     let mut is_correct = false;
@@ -385,13 +346,6 @@ fn handle_block(json : &serde_json::Value, blockchain : &mut Blockchain){
             blockchain.add_block(new_block);
         };
     };
-}
-
-fn init_input(id : u64, amount : u64) -> Input{
-    Input {
-        id,
-        amount,
-    }
 }
 
 fn validate_block(json : &serde_json::Value) -> bool{
@@ -550,3 +504,53 @@ fn sum_inputs(json : &serde_json::Value) -> i64 {
     total_amount.try_into().unwrap()
 }
 
+
+// Initialising objects
+fn init_input(id : u64, amount : u64) -> Input{
+    Input {
+        id,
+        amount,
+    }
+}
+
+fn init_blockchain() -> Blockchain {
+    let cur_state = State{
+        height : 0,
+        totalwork : 0,
+        hash : "".to_string(),
+        outputs : vec![],
+    };
+
+    let cur_trans = Transaction{
+        inputs : vec![init_input(0,0),],
+        outputs : vec![init_input(0,0),],
+    };
+    
+    let cur_block = Block{
+        hash : "".to_string(),
+        predecessor : "".to_string(),
+        nonce : 0,
+        difficulty : 0,
+        transactions : vec![cur_trans,],
+    };
+
+    let cur_head = Head{
+        height : 0,
+        totalwork : 0,
+        hash : "".to_string(),
+    };
+
+    let cur_head2 = Head{
+        height : 0,
+        totalwork : 0,
+        hash : "".to_string(),
+    };
+
+    let blockchain = Blockchain{
+        state : cur_state,
+        heads: vec![cur_head,],
+        blocks : vec![cur_block,],
+        head_history : vec![cur_head2],
+    };
+    blockchain
+}
