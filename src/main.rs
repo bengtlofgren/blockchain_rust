@@ -46,6 +46,7 @@ struct Blockchain {
     heads : Vec<Head>,
     blocks : Vec<Block>,
     head_history : Vec<Head>,
+   // unspent_trans : serde_json::Value,
 }
 
 impl Blockchain {
@@ -98,32 +99,53 @@ impl Blockchain {
         let transactions = serde_json::to_value(&block.transactions).unwrap();
         self.update_state(predecessor, blockhash, diff);
         self.update_outputs(transactions);
+        self.blocks.push(block);
     }
 
-    fn update_outputs(&mut self, trans : serde_json::Value){
-        let transactions = trans[0];
+    fn update_outputs(&mut self, transactions : serde_json::Value){
+        let mut new_outs = vec![];
+        let trans_exist = transactions.get(0);
+        match trans_exist{
+            None => {return;},
+            Some(_) => {}
+        };
         let outputs = transactions.get("outputs");
         match outputs{
             None => {},
             Some(outputs) => {
                 if outputs.is_array(){
-                    let ous = outputs.as_array().unwrap();
-                    self.state.outputs.append(&mut ous);
-                };
-            }
-        }
+                    let outs = outputs.as_array().unwrap();
+                    for out in outs.iter(){
+                        let output_aux : Input = init_input(out["id"].as_u64().unwrap(), out["amount"].as_u64().unwrap());
+                        new_outs.push(output_aux);
+                    }
+                }
+            },
+        };
         let inputs = transactions.get("inputs");
         match inputs{
             None => {},
             Some(inputs) => {
                 if inputs.is_array(){
-                    let ins = inputs.as_array();
+                    let ins = inputs.as_array().unwrap();
                     for i in ins.iter(){
-                    self.state.outputs.retain(|x| *x.id == i.id);
-                    };
-                }
-            }
-        }
+                        let i_id = i["id"].as_u64().unwrap();
+                        let mut is_found = false;
+                        for cur_out in self.state.outputs.iter(){
+                            if cur_out.id == i_id {
+                                is_found = true;
+                                break;
+                            }
+                        }
+                        if !is_found{
+                            let input_aux : Input = init_input(i_id, i["amount"].as_u64().unwrap());
+                            new_outs.push(input_aux);
+                        }
+                    }
+                };
+            },
+        };
+        self.state.outputs = new_outs;   
     }
 }
 
@@ -165,6 +187,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         heads: vec![cur_head,],
         blocks : vec![cur_block,],
         head_history : vec![cur_head2],
+        //unspent_trans : serde_json::to_value(&init_input(0,0)).unwrap(),
     };
     let mut is_init = false;
     loop {
