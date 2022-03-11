@@ -95,8 +95,35 @@ impl Blockchain {
         let diff = block.difficulty + 0;
         let blockhash = block.hash.to_string();
         let predecessor = block.predecessor.to_string();
-        self.blocks.push(block);
+        let transactions = serde_json::to_value(&block.transactions).unwrap();
         self.update_state(predecessor, blockhash, diff);
+        self.update_outputs(transactions);
+    }
+
+    fn update_outputs(&mut self, trans : serde_json::Value){
+        let transactions = trans[0];
+        let outputs = transactions.get("outputs");
+        match outputs{
+            None => {},
+            Some(outputs) => {
+                if outputs.is_array(){
+                    let ous = outputs.as_array().unwrap();
+                    self.state.outputs.append(&mut ous);
+                };
+            }
+        }
+        let inputs = transactions.get("inputs");
+        match inputs{
+            None => {},
+            Some(inputs) => {
+                if inputs.is_array(){
+                    let ins = inputs.as_array();
+                    for i in ins.iter(){
+                    self.state.outputs.retain(|x| *x.id == i.id);
+                    };
+                }
+            }
+        }
     }
 }
 
