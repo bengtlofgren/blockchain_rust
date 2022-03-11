@@ -105,14 +105,18 @@ impl Blockchain {
     fn update_outputs(&mut self, transactions : serde_json::Value){
         let mut new_outs = vec![];
         let trans_exist = transactions.get(0);
+        // for cur_out in &self.state.outputs{
+        //     new_outs.push(init_input(cur_out.id, cur_out.amount));
+        // }
         match trans_exist{
             None => {return;},
             Some(_) => {}
         };
-        let outputs = transactions.get("outputs");
+        let outputs = transactions[0].get("outputs");
         match outputs{
             None => {},
             Some(outputs) => {
+                println!("found outputs!");
                 if outputs.is_array(){
                     let outs = outputs.as_array().unwrap();
                     for out in outs.iter(){
@@ -122,23 +126,23 @@ impl Blockchain {
                 }
             },
         };
-        let inputs = transactions.get("inputs");
+        let inputs = transactions[0].get("inputs");
         match inputs{
             None => {},
             Some(inputs) => {
                 if inputs.is_array(){
                     let ins = inputs.as_array().unwrap();
-                    for i in ins.iter(){
-                        let i_id = i["id"].as_u64().unwrap();
+                    for cur_out in &self.state.outputs{
                         let mut is_found = false;
-                        for cur_out in self.state.outputs.iter(){
+                        for i in ins.iter(){
+                            let i_id = i["id"].as_u64().unwrap();
                             if cur_out.id == i_id {
                                 is_found = true;
                                 break;
-                            }
+                                }
                         }
                         if !is_found{
-                            let input_aux : Input = init_input(i_id, i["amount"].as_u64().unwrap());
+                            let input_aux : Input = init_input(cur_out.id, cur_out.amount);
                             new_outs.push(input_aux);
                         }
                     }
