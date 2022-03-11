@@ -1,0 +1,8 @@
+test = 
+json{"difficulty": 3, "hash": "0x000e00564ca39c4f395a6caf631cefe57b8f89c649a81d5016cfeca95a580653", "nonce": 1899, "predecessor": "0xaa5598c670c7f9c9ab8594d942390dad96b52631bfb78d060476b9a719365947",}
+test_2 =
+{"init":{"predecessor":"","nonce":0, "difficulty":0, "transactions":[ {"inputs":[],"outputs":[{"id":73,"amount":30}]}], "hash":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85"}}
+test_block = 
+{"block":{ "difficulty": 0, "nonce": 0, "predecessor":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85", "transactions":[], "hash":"0xd47eab68ff9bc740f05bd1c4895966b6cb16e2dd62b0688783919dd6e5a8a576"}}
+test_block2=
+{"block":{"difficulty":2, "hash":"0x0004ea327a7bd916e0a542599f257393b83537bb4031d2c502f2f4629a87c61c","nonce":123, "predecessor":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85", "transactions":[{"inputs":[{"amount":30,"id":73}],"outputs":[{"amount":30,"id":74}]}]}}

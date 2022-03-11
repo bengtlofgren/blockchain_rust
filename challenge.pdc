@@ -1,0 +1,392 @@
+---
+title: Coding Challenge
+lang: zh-ZH
+mainfont: Noto Sans CJK HK Light
+fontsize: 7pt
+author: Heliax
+date: \textit{Version 1.1}
+abstract: Demonstrate your programming proficiency by writing a very simple proof-of-work blockchain client.
+          Your client will accept blocks via `stdin`, respond to query commands, validate transactions,
+          check hashes, validate proofs-of-work, track forks, and calculate the heaviest chain.
+urlcolor: cyan
+header-includes:
+    - \usepackage{fancyhdr}
+    - \usepackage{graphicx}
+    - \usepackage{hyperref}
+    - \usepackage{setspace}
+    - \pagestyle{fancy}
+    - \fancyhead[RE,LO]{Heliax}
+    - \fancyhead[LE,Ro]{\includegraphics[height=5mm]{logo}}
+    - \fancyhead[CO,CE]{}
+    - \fancyfoot[CO,CE]{}
+    - \fancyfoot[LE,RO]{\thepage}
+---
+
+\pagebreak
+
+
+
+# Overview
+
+Demonstrate your programming proficiency by writing a simple blockchain client. Your client will accept new blocks
+and transactions, validate proofs-of-work, track a tree of known blocks, validate transactions & blocks,
+and respond to queries about the current state.
+
+## Binary Operation
+
+Your project should build a binary which repeatedly reads newline-denominated JSON-encoded commands from `stdin`
+and responds with JSON-encoded responses. Upon receiving a Ctrl-C signal, your binary should exit. Upon receiving
+an invalid input, your binary should print an error response but continue running.
+
+Note that example commands and responses in this document include extra newlines for clarity, but your client
+need neither handle or produce them - no-newline dense JSON is fine.
+
+# Datatypes
+
+## Input
+
+An input contains a unique numerical identifier and an amount.
+
+Example input:
+
+```json
+{"id":2,"amount":7}
+```
+
+## Output
+
+An output contains a unique numerical identifier and an amount.
+
+Example output:
+
+```json
+{"id":3,"amount":20}
+```
+
+## Transaction
+
+A transaction contains any number of inputs and any number of outputs, which must sum to the same amount.
+
+Example transaction:
+
+```json
+{
+  "inputs":[{"id":2,"amount":7}],
+  "outputs":[{"id":3,"amount":4},{"id":4,"amount":3}]
+}
+```
+
+## Block
+
+A block contains the predecessor block hash, a list of transactions, the target difficulty, the nonce, and the block's hash.
+
+The difficulty determines the number of leading zeroes which must be present in the block hash in order for it to be considered valid.
+
+Example block:
+
+```json
+{
+  "difficulty": 3,
+  "hash": "0x000e00564ca39c4f395a6caf631cefe57b8f89c649a81d5016cfeca95a580653",
+  "nonce": 1899,
+  "predecessor": "0xaa5598c670c7f9c9ab8594d942390dad96b52631bfb78d060476b9a719365947",
+  "transactions": [
+    {
+      "inputs": [{"amount": 7, "id": 2}],
+      "outputs": [{"amount": 4, "id": 3}, {"amount": 3, "id": 4}]
+    },
+    {
+      "inputs": [{"amount": 15, "id": 13}, {"amount": 15, "id": 34}],
+      "outputs": [{"amount": 30, "id": 73}]
+    }
+  ]
+}
+```
+
+The hash of a block is calculated as the `0x`-prefixed lowercase-base16-encoded SHA256 hash of the JSON-encoded tuple of the predecessor hash, the list of transactions, the difficulty and the nonce. Note that JSON keys must be sorted.
+
+For comparision, the hash can be calculated in Python as follows:
+
+```python
+def hash(block):
+  encoded = json.dumps((block['predecessor'], block['transactions'],
+    block['difficulty'], block['nonce']),
+    sort_keys=True, separators=(',',':'))
+  return '0x' + base64.b16encode(hashlib.sha256(encoded).digest()).lower()
+```
+
+# Commands
+
+## Initialize
+
+The initialize command specifies a new genesis block.
+
+```json
+{"init":{
+  "predecessor":"",
+  "nonce":0,
+  "difficulty":0,
+  "transactions":[
+    {"inputs":[],"outputs":[{"id":73,"amount":30}]}
+  ],
+  "hash":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85"
+}}
+```
+
+### Responses
+
+Transactions in the genesis block do not need to be validated.
+
+If the block hash is invalid, the client should return an error:
+
+```json
+{"error":"invalid hash"}
+```
+
+If the block hash is valid, the client should return OK:
+
+```json
+{"ok":[]}
+```
+
+## Query State
+
+The state query command should return the current height, hash, and unspent outputs of the longest chain.
+
+```json
+{"query":"state"}
+```
+
+### Responses
+
+If there is no current longest chain, an error should be returned:
+
+```json
+{"error":"must initialize first"}
+```
+
+If there is a current longest chain, the current height, block hash, and unspent outputs should be returned:
+
+```json
+{
+  "state": {
+    "height":1,
+    "totalWork":1,
+    "hash":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+    "outputs":[{"id":73,"amount":30}]
+  }
+}
+```
+
+### Fork choice
+
+The longest chain should be chosen by total work, calculated as the sum of `16^d` for `d` as the difficulty of each block.
+In the case of two chains with equal work, choose either, but choose consistently (and document your fork choice rule).
+
+## Query Heads
+
+The heads query command should return a list of all current heads (possible forks), along with their heights and tip hashes.
+
+```json
+{"query":"heads"}
+```
+
+### Responses
+
+If a genesis block has not yet been initialized, an error should be returned:
+
+```json
+{"error":"must initialize first"}
+```
+
+Otherwise, the list of current heads (possible forks) should be returned:
+
+```json
+{"heads":[
+  {
+    "height":1,
+    "totalWork": 1,
+    "hash":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85"
+  }
+]}
+```
+
+There could be many possible heads:
+
+```json
+{"heads":[
+  {
+    "height":2,
+    "totalWork": 17,
+    "hash":"0x076040bbaaed8c6a5b46bab5523c96665ec74c3c06e9194c8bf3814e75fee1e6"
+  },
+  {
+    "height":2,
+    "totalWork": 2,
+    "hash":"0xd47eab68ff9bc740f05bd1c4895966b6cb16e2dd62b0688783919dd6e5a8a576"
+  }
+]}
+```
+
+## Submit Block
+
+The submit command provides a new block to be added by the client, if valid.
+
+```json
+{"block":
+  {
+    "difficulty": 0,
+    "nonce": 0,
+    "predecessor":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+    "transactions":[],
+    "hash":"0xd47eab68ff9bc740f05bd1c4895966b6cb16e2dd62b0688783919dd6e5a8a576"
+  }
+}
+```
+
+### Responses
+
+If a genesis block has not yet been initialized, an error should be returned:
+
+```json
+{"error":"must initialize first"}
+```
+
+If the block hash is invalid, an error should be returned:
+
+```json
+{"error":"invalid hash"}
+```
+
+If the block does not reference any current blocks, an error should be returned:
+
+```json
+{"error":"no predecessor found"}
+```
+
+If the block has the same hash as a current block, an error should be returned:
+
+```json
+{"error":"duplicate hash"}
+```
+
+If the block contains an invalid transaction (mismatched inputs/outputs sum, nonexistent inputs, duplicate outputs), an error should be returned:
+
+```json
+{"error":"invalid transaction"}
+```
+
+If the block does not have at least the minimum difficulty of the previous block, an error should be returned:
+
+```json
+{"error":"difficulty must not decrease"}
+```
+
+If the difficulty does not match the number of leading zeroes in the block hash, an error should be returned:
+
+```json
+{"error":"leading zeroes in block hash did not match difficulty"}
+```
+
+Otherwise, if the submitted block is valid, the client state should be updated and an OK response returned:
+
+```json
+{"ok":[]}
+```
+
+# Guidelines
+
+- Write in your choice of [Idris](https://idris-lang.org), [Agda](https://wiki.portal.chalmers.se/agda/pmwiki.php), or [Coq](https://coq.inria.fr/).
+  You may import JSON or SHA256 libraries by FFI if there are none natively available in the language.
+- Create your submission in a private Git repository and grant us access via Github or Gitlab. Include any nonstandard build requirements or instructions.
+- Third-party libraries are allowed, but you should not need anything beyond the language-bundled defaults and a SHA256 hash function implementation.
+- Avoid excessive boilerplate. Document your code concisely. Consider the performance of your code and note any concerns.
+- If the requirements are ambiguous, document your interpretation. Consistency and clarity are more important than exact compliance with the specification.
+
+# Appendix A: Example Transcripts
+
+Correct client implementations should exactly reproduce these transcripts (your submission will be tested with more complex cases), modulo minor differences
+in JSON spacing or ordering, which are not important.
+
+## Initialization & Query
+
+\small
+```json
+> {"init":{"difficulty":0,
+  "hash":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+  "nonce":0,"predecessor":"",
+  "transactions":[{"inputs":[],"outputs":[{"amount":30,"id":73}]}]}}
+{"ok":[]}
+> {"query":"state"}
+{"state":{"height":1,"totalWork":1,
+  "hash":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+  "outputs":[{"id":73,"amount":30}]}}
+> {"query":"heads"}
+{"heads":[{"height":1,"totalWork":1,
+  "hash":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85"}]}
+```
+\normalsize
+
+## Appending Blocks
+
+\small
+```json
+> {"init":{"difficulty":0,
+  "hash":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+  "nonce":0,"predecessor":"",
+  "transactions":[{"inputs":[],"outputs":[{"amount":30,"id":73}]}]}}
+{"ok":[]}
+> {"block":{"difficulty":1,
+  "hash":"0x076040bbaaed8c6a5b46bab5523c96665ec74c3c06e9194c8bf3814e75fee1e6",
+  "nonce":3,"predecessor":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+  "transactions":[]}}
+{"ok":[]
+> {"block":{"difficulty":1,
+  "hash":"0x076040bbaaed8c6a5b46bab5523c96665ec74c3c06e9194c8bf3814e75fee1e6",
+  "nonce":3,"predecessor":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+  "transactions":[]}}
+{"error":"duplicate hash"}
+```
+\normalsize
+
+## Forks
+
+\small
+```json
+> {"init":{"difficulty":0,
+  "hash":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+  "nonce":0,"predecessor":"",
+  "transactions":[{"inputs":[],"outputs":[{"amount":30,"id":73}]}]}}
+{"ok":[]}
+> {"block":{"difficulty":1,
+  "hash":"0x076040bbaaed8c6a5b46bab5523c96665ec74c3c06e9194c8bf3814e75fee1e6",
+  "nonce":3,"predecessor":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+  "transactions":[]}}
+{"ok":[]}
+> {"block":{"difficulty":2,
+  "hash":"0x0004ea327a7bd916e0a542599f257393b83537bb4031d2c502f2f4629a87c61c","nonce":123,
+  "predecessor":"0xdcb3d5ee85f43e20e5844b787738941cc780eaac8200cb6734ca13cb4f8d1f85",
+  "transactions":[{"inputs":[{"amount":30,"id":73}],"outputs":[{"amount":30,"id":74}]}]}}
+{"ok":[]}
+> {"query":"heads"}
+{"heads":[{"height":2,"totalWork":257,
+  "hash":"0x0004ea327a7bd916e0a542599f257393b83537bb4031d2c502f2f4629a87c61c"},
+  {"height":2,"totalWork":17,
+  "hash":"0x076040bbaaed8c6a5b46bab5523c96665ec74c3c06e9194c8bf3814e75fee1e6"}]}
+> {"block":{"difficulty":3,
+  "hash":"0x000c8a76cc5c61b28b2c5d925aa28b97310580f879a34f622f03795ca58a19bb","nonce":3785,
+  "predecessor":"0x0004ea327a7bd916e0a542599f257393b83537bb4031d2c502f2f4629a87c61c",
+  "transactions":[{"inputs":[{"amount":30,"id":74}],
+  "outputs":[{"amount":15,"id":75},{"amount":15,"id":76}]}]}}
+{"ok":[]}
+> {"query":"state"}
+{"state":{"height":3,"totalWork":4353,
+  "hash":"0x000c8a76cc5c61b28b2c5d925aa28b97310580f879a34f622f03795ca58a19bb",
+  "outputs":[{"id":75,"amount":15},{"id":76,"amount":15}]}}
+> {"query":"heads"}
+{"heads":[{"height":3,"totalWork":4353,
+  "hash":"0x000c8a76cc5c61b28b2c5d925aa28b97310580f879a34f622f03795ca58a19bb"},
+  {"height":2,"totalWork":17,
+  "hash":"0x076040bbaaed8c6a5b46bab5523c96665ec74c3c06e9194c8bf3814e75fee1e6"}]}
+```
+\normalsize
